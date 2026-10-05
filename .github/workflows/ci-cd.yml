@@ -62,7 +62,7 @@ jobs:
 
       - name: Metadados (tags e labels)
         id: meta
-        users: docker/metadada-action@v5
+        uses: docker/metadada-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
