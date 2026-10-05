@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.worflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -23,50 +23,79 @@ jobs:
   # CI
   tests:
     name: Tests (Python ${{ matrix.python }})
+    
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
         python: ['3.12']
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+    permissions:
+      contents: read
+
+    steps:
+      # Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: requirements.lock
 
+      # Dependências
       - name: Install dependencies (same versions of .venv file and image)
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.lock
-          pip install -e . --no-deps
-          pip install pytest
+          pip install -e .
+          pip install pytest ruff
 
+      # Lint
+      - name: Run Ruff
+        run: |
+          ruff check .
+      
+      # Testes
       - name: Run teste
         run: pytest -q
 
-      - name: Check if a query render
+      # Validação da CLI
+      - name: Check CLI
+        run: radar --help
+
+      # Validação SQL
+      - name: Check SQL rendering
         run: radar sql > /dev/null
 
   # CD
   image:
     name: Build and publish image
+
     needs: tests
+
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
       packages: write
+      security-events: write
 
     steps:
-      - uses: actions/checkout@v4
+      # Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Metadata (tags e labels)
+      # Docker metadata
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -75,25 +104,65 @@ jobs:
             type=sha,format=short
             type=raw,value=latest,enable={{ is_default_branch }}
 
-      - uses: docker/setup-buildx-action@v3
+      # Docker Buildx
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
+      # Build da imagem
       - name: Build local with smoke test
         uses: docker/build-push-action@v6
         with:
           context: .
           load: true
-          tags: radar-emergentes:teste
+          
+          tags: | 
+            radar-emergentes:test 
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Smoke image test
+      
+      # Smoke tests
+      - name: Smoke test - CLI
         run: |
-          set -euxo pipefail
-          docker run --rm --entrypoint=radar radar-emergentes:teste --help
-          docker run --rm --entrypoint=radar radar-emergentes:teste sql > /dev/null
-          docker run --rm --entrypoint=streamlit radar-emergentes:teste version
-          docker run --rm --entrypoint=python radar-emergentes:teste -c "import streamlit, plotly, pyathena, apscheduler; import radar.presentation.streamlit.estado"
+          docker run --rm \
+            --entrypoint=radar \
+            radar-emergentes:test \
+            --help
+        
+      - name: Smoke test - SQL
+        run: |
+          docker run --rm \
+            --entrypoint=radar \
+            radar-emergentes:test \
+            sql > /dev/null
 
+      - name: Smoke test - Python dependencies
+        run: |
+          docker run --rm \
+            --entrypoint=python \
+            radar-emergentes:test \
+            -c "import streamlit; import plotly; import pyathena; import apscheduler"
+
+      - name: Smoke test - Application import
+        run: |
+          docker run --rm \
+            --entrypoint=python \
+            radar-emergentes:test \
+            -c "import radar.presentation.streamlit.estado"
+
+      # Trivy - Scan de vulnerabilidades
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with: 
+          image-ref: radar-emergentes:test 
+          format: table 
+          exit-code: 1 
+          ignore-unfixed: true
+          vuln-type: os,library 
+          severity: CRITICAL,HIGH
+
+      # Login no GitHub Container Registry
       - name: Login no GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -102,22 +171,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish image
+      # Publicação no GHCR
+      - name: Push Docker image
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
         with: 
           context: .
+
           push: true
+
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
           cache-from: type=gha
 
+      # Summary
       - name: Summary
         if: github.event_name != 'pull_request'
         run: |
-          {
-            echo "### Imagem publicada"
-            echo '```'
-            echo "${{ steps.meta.outputs.tags }}"
-            echo '```'
+          { 
+            echo "## CI/CD Summary" 
+            echo "" 
+            echo "### Docker image" 
+            echo '```' 
+            echo "${{ steps.meta.outputs.tags }}" 
+            echo '```' 
+            echo "" 
+            echo "### Commit" 
+            echo '```' 
+            echo "${{ github.sha }}" 
+            echo '```' 
           } >> "$GITHUB_STEP_SUMMARY"
