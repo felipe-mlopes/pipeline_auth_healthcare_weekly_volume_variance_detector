@@ -8,3 +8,4 @@ __pycache__/
 extractions/csv/*
 !extractions/csv/.gitkeep
 build/
+.ruff_cache
