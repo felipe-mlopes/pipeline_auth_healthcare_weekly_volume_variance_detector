@@ -1,0 +1,10 @@
+data/
+.env
+__pycache__/
+*.egg.info/
+.pytest_cache/
+.venv/
+.lockenv/
+extractions/csv/*
+!extractions/csv/.gitkeep
+build/
