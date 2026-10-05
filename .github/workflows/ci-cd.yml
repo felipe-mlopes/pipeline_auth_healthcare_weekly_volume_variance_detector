@@ -88,11 +88,11 @@ jobs:
 
       - name: Smoke image test
         run: |
-          IMG=radar-emergentes:teste
-          docker run --rm --entrypoint radar "$IMG" --help
-          docker run --rm --entrypoint radar "$IMG" sql > /dev/null
-          docker run --rm --entrypoint radar python "$IMG" -c "import streamlit, plotly, pyathena, appscheduler; import radar.presentation.streamlit.estado"
-          docker run --rm --entrypoint streamlit "$IMG" version
+          set -euxo pipefail
+          docker run --rm --entrypoint=radar radar-emergentes:teste --help
+          docker run --rm --entrypoint=radar radar-emergentes:teste sql > /dev/null
+          docker run --rm --entrypoint=streamlit radar-emergentes:teste version
+          docker run --rm --entrypoint=python radar-emergentes:teste -c "import streamlit, plotly, pyathena, appscheduler; import radar.presentation.streamlit.estado"
 
       - name: Login no GHCR
         if: github.event_name != 'pull_request'
