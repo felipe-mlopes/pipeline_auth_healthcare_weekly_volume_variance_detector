@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.lockenv
+.pytest_cache
+**/__pycache__
+*.egg-info
+build
+data
+extractions/csv
+.env
+.streamlit/secrets.toml
+tests
