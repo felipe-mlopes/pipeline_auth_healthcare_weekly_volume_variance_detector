@@ -90,7 +90,7 @@ jobs:
         run: |
           docker run --rm radar-emergentes:teste radar --help
           docker run --rm radar-emergentes:teste radar sql > /dev/null
-          docker run --rm radar-emergentes:teste radar python -c "import streamlit, ploty, pyathena, appscheduler; import radar.presentation.streamlit.estado"
+          docker run --rm radar-emergentes:teste radar python -c "import streamlit, plotly, pyathena, appscheduler; import radar.presentation.streamlit.estado"
 
       - name: Login no GHCR
         if: github.event_name != 'pull_request'
