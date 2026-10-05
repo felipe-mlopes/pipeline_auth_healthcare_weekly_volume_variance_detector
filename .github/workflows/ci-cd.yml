@@ -21,7 +21,7 @@ env:
 jobs:
 
   # CI
-  testes:
+  tests:
     name: Tests (Python ${{ matrix.python }})
     runs-on: ubuntu-lastest
     strategy:
@@ -50,7 +50,7 @@ jobs:
         run: radar sql > /dev/null
 
   # CD
-  imagem:
+  image:
     name: Build and publish image
     needs: tests
     runs-on: ubuntu-lastest
@@ -60,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Metadados (tags e labels)
+      - name: Metadata (tags e labels)
         id: meta
         uses: docker/metadada-action@v5
         with:
