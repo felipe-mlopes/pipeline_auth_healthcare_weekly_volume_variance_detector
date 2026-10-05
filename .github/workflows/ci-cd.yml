@@ -1,0 +1,119 @@
+# CI/CD - testa o código e publica a imagem Docker no Github Container Registry
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_requests:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.worflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+
+  # CI
+  testes:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-lastest
+    strategy:
+      matrix:
+        python: ['3,12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install dependencies (same versions of .venv file and image)
+        run: |
+          python -m pip install --upgrade pip
+          pip install - r requirements.lock
+          pip install -e . --no-deps
+          pip install pytest
+
+      - name: Run teste
+        run: pytest -q
+
+      - name: Check if a query render
+        run: radar sql > /dev/null
+
+  # CD
+  imagem:
+    name: Build and publish image
+    needs: tests
+    runs-on: ubuntu-lastest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Metadados (tags e labels)
+        id: meta
+        users: docker/metadada-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{ version }}
+            type=semver,pattern={{ major }}.{{ minor }}
+            type=sha,format=short
+            type=raw,value=latest,enable={{ is_default_branch }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build local with smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: radar-emergentes:teste
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke image test
+        run: |
+          docker run --rm radar-emergentes:teste radar --help
+          docker run --rm radar-emergentes:teste radar sql > /dev/null
+          docker run --rm radar-emergentes:teste radar python -c "import streamlit, ploty, pyathena, appscheduler; import radar.presentation.streamlit.estado"
+
+      - name: Login no GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-actions@v6
+        with: 
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+
+      - name: Summary
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "### Imagem publicada"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
