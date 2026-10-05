@@ -5,9 +5,19 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from radar.domain.emergencia import ParametrosEmergencia, calcular_metricas, classificar, taxa_crescimento
+from radar.domain.emergencia import (
+    ParametrosEmergencia,
+    calcular_metricas,
+    classificar,
+    taxa_crescimento,
+)
 from radar.domain.schema import CHAVES_EVENTO
-from radar.domain.semanas import Janelas, definir_janelas, preparar_base, semanas_parciais
+from radar.domain.semanas import (
+    Janelas,
+    definir_janelas,
+    preparar_base,
+    semanas_parciais,
+)
 
 # Colunas da classificação no nível EVENTO herdadas pelos drill-downs
 _HERDADAS = ["classificacao_emergencia", "flag_emergente", "score_emergencia", "rank_emergencia", "label_evento"]

@@ -27,7 +27,7 @@ def executar_com_retentativas(caso_de_uso: ExtrairSnapshotSemanal, tentativas: i
 
 def iniciar(caso_de_uso: ExtrairSnapshotSemanal, cron: str, timezone: str,
             tentativas: int, espera_s: int, executar_ao_iniciar: bool) -> None:
-    job = lambda: executar_com_retentativas(caso_de_uso, tentativas, espera_s)  # noqa: E731
+    job = lambda: executar_com_retentativas(caso_de_uso, tentativas, espera_s)
     if executar_ao_iniciar:
         job()  # cache evita reconsulta se a semana já foi extraída
 

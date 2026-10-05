@@ -9,6 +9,7 @@ from radar.application.extrair_snapshot import ExtrairSnapshotSemanal
 from radar.config import get_settings
 from radar.infrastructure.repositorio_snapshots import RepositorioSnapshotsParquet
 
+
 def _resolver_csvs(arquivos: list[Path]) -> list[Path]:
     pasta = get_settings().diretorio_csv
 

@@ -1,7 +1,12 @@
 import pandas as pd
-
-from radar.domain.semanas import definir_janelas, inicio_semana, preparar_base, semanas_parciais
 from conftest import linha
+
+from radar.domain.semanas import (
+    definir_janelas,
+    inicio_semana,
+    preparar_base,
+    semanas_parciais,
+)
 
 
 def test_corrige_bug_de_domingo():
