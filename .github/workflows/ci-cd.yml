@@ -54,15 +54,17 @@ jobs:
     name: Build and publish image
     needs: tests
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
+      
     steps:
       - uses: actions/checkout@v4
 
       - name: Metadata (tags e labels)
         id: meta
-        uses: docker/metadada-action@v5
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
